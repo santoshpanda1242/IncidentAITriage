@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Incident Triage Chatbot</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .chat-container {
+            width: 90%;
+            max-width: 800px;
+            height: 90vh;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chat-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .chat-header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+
+        .chat-header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .status-bar {
+            background: #f0f0f0;
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #ccc;
+        }
+
+        .status-dot.ready {
+            background: #4CAF50;
+        }
+
+        .status-dot.initializing {
+            background: #FFA500;
+            animation: pulse 1s infinite;
+        }
+
+        .status-dot.error {
+            background: #f44336;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        .init-btn {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .init-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background: #f8f9fa;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            display: flex;
+            align-items: flex-start;
+        }
+
+        .message.user {
+            justify-content: flex-end;
+        }
+
+        .message.assistant {
+            justify-content: flex-start;
+        }
+
+        .message-content {
+            max-width: 70%;
+            padding: 12px 16px;
+            border-radius: 12px;
+            word-wrap: break-word;
+        }
+
+        .message.user .message-content {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .message.assistant .message-content {
+            background: white;
+            border: 1px solid #e0e0e0;
+            color: #333;
+        }
+
+        .message-time {
+            font-size: 11px;
+            color: #666;
+            margin-top: 5px;
+            font-style: italic;
+        }
+
+        .message.user .message-time {
+            text-align: right;
+        }
+
+        .chat-input {
+            padding: 20px;
+            background: white;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .input-container {
+            display: flex;
+            gap: 10px;
+        }
+
+        #userInput {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 25px;
+            font-size: 16px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        #userInput:focus {
+            border-color: #667eea;
+        }
+
+        #sendBtn {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: transform 0.2s;
+        }
+
+        #sendBtn:hover {
+            transform: scale(1.05);
+        }
+
+        #sendBtn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .typing-indicator {
+            display: none;
+            padding: 10px;
+            font-style: italic;
+            color: #666;
+        }
+
+        .typing-indicator.active {
+            display: block;
+        }
+
+        .clear-btn {
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-left: 10px;
+        }
+
+        .metadata {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+            padding: 8px;
+            background: #f0f0f0;
+            border-radius: 8px;
+        }
+
+        .welcome-message {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+
+        .welcome-message h2 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .suggestions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 15px;
+        }
+
+        .suggestion-btn {
+            background: #f0f0f0;
+            border: 1px solid #ccc;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+
+        .suggestion-btn:hover {
+            background: #e0e0e0;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <h1>🤖 Incident Triage Assistant</h1>
+            <p>AI-powered incident resolution system</p>
+        </div>
+
+        <div class="status-bar">
+            <div class="status-indicator">
+                <div class="status-dot" id="statusDot"></div>
+                <span id="statusText">Not initialized</span>
+            </div>
+            <button class="init-btn" id="initBtn" onclick="initializeSystem()">Initialize System</button>
+        </div>
+
+        <div class="chat-messages" id="chatMessages">
+            <div class="welcome-message">
+                <h2>Welcome to Incident Triage Assistant</h2>
+                <p>I can help you resolve incidents by analyzing your systems and providing solutions.</p>
+                <p><strong>Try asking about:</strong></p>
+                <div class="suggestions">
+                    <button class="suggestion-btn" onclick="sendSuggestion('Payment service database timeout')">Payment
+                        service database timeout</button>
+                    <button class="suggestion-btn" onclick="sendSuggestion('User authentication failure')">User
+                        authentication failure</button>
+                    <button class="suggestion-btn" onclick="sendSuggestion('Order creation failures')">Order creation
+                        failures</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="typing-indicator" id="typingIndicator">
+            🤖 Assistant is thinking...
+        </div>
+
+        <div class="chat-input">
+            <div class="input-container">
+                <input type="text" id="userInput" placeholder="Describe your incident or ask a question..."
+                    onkeypress="handleKeyPress(event)">
+                <button id="sendBtn" onclick="sendMessage()">Send</button>
+                <button class="clear-btn" onclick="clearChat()">Clear</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+
+        function sendSuggestion(text) {
+            document.getElementById('userInput').value = text;
+            sendMessage();
+        }
+
+        async function sendMessage() {
+            const userInput = document.getElementById('userInput');
+            const sendBtn = document.getElementById('sendBtn');
+            const message = userInput.value.trim();
+
+            if (!message) return;
+
+            // Check if system is ready
+            const statusDot = document.getElementById('statusDot');
+            if (!statusDot.classList.contains('ready')) {
+                addMessage('assistant', '⚠️ System is not initialized yet. Please wait for initialization to complete.');
+                return;
+            }
+
+            // Add user message to chat
+            addMessage('user', message);
+            userInput.value = '';
+
+            // Disable input while processing
+            userInput.disabled = true;
+            sendBtn.disabled = true;
+
+            // Show typing indicator
+            document.getElementById('typingIndicator').classList.add('active');
+
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ message: message })
+                });
+
+                const data = await response.json();
+
+                // Hide typing indicator
+                document.getElementById('typingIndicator').classList.remove('active');
+
+                // Re-enable input
+                userInput.disabled = false;
+                sendBtn.disabled = false;
+
+                if (response.ok) {
+                    addMessage('assistant', data.response, data.metadata);
+                } else {
+                    addMessage('assistant', 'Error: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                document.getElementById('typingIndicator').classList.remove('active');
+                userInput.disabled = false;
+                sendBtn.disabled = false;
+                addMessage('assistant', 'Error: Failed to connect to server');
+            }
+        }
+
+        function addMessage(role, content, metadata = null) {
+            const chatMessages = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+
+            const messageContent = document.createElement('div');
+            messageContent.className = 'message-content';
+            messageContent.innerHTML = content.replace(/\n/g, '<br>');
+
+            const messageTime = document.createElement('div');
+            messageTime.className = 'message-time';
+            const now = new Date();
+            messageTime.textContent = now.toLocaleTimeString();
+
+            messageDiv.appendChild(messageContent);
+            messageDiv.appendChild(messageTime);
+
+            if (metadata) {
+                const metadataDiv = document.createElement('div');
+                metadataDiv.className = 'metadata';
+                metadataDiv.innerHTML = `
+                    <strong>Service:</strong> ${metadata.service_name} | 
+                    <strong>KB Articles:</strong> ${metadata.kb_articles_count} | 
+                    <strong>Error Logs:</strong> ${metadata.error_logs_count}
+                `;
+                messageDiv.appendChild(metadataDiv);
+            }
+
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        async function clearChat() {
+            try {
+                await fetch('/api/clear', {
+                    method: 'POST'
+                });
+
+                const chatMessages = document.getElementById('chatMessages');
+                chatMessages.innerHTML = `
+                    <div class="welcome-message">
+                        <h2>Welcome to Incident Triage Assistant</h2>
+                        <p>I can help you resolve incidents by analyzing your systems and providing solutions.</p>
+                        <p><strong>Try asking about:</strong></p>
+                        <div class="suggestions">
+                            <button class="suggestion-btn" onclick="sendSuggestion('Payment service database timeout')">Payment service database timeout</button>
+                            <button class="suggestion-btn" onclick="sendSuggestion('User authentication failure')">User authentication failure</button>
+                            <button class="suggestion-btn" onclick="sendSuggestion('Order creation failures')">Order creation failures</button>
+                        </div>
+                    </div>
+                `;
+            } catch (error) {
+                console.error('Error clearing chat:', error);
+            }
+        }
+
+        // Check system status on load
+        async function checkStatus() {
+            try {
+                const response = await fetch('/api/status');
+                const data = await response.json();
+                console.log('System status:', data);
+            } catch (error) {
+                console.error('Error checking status:', error);
+            }
+        }
+
+        // Check status when page loads
+        window.onload = function () {
+            // Redirect to correct port if needed
+            if (window.location.port === '5000') {
+                window.location.href = window.location.href.replace(':5000', ':5001');
+            }
+            checkStatus();
+            // Auto-initialize after 1 second
+            setTimeout(initializeSystem, 1000);
+        };
+
+        async function initializeSystem() {
+            const initBtn = document.getElementById('initBtn');
+            const statusDot = document.getElementById('statusDot');
+            const statusText = document.getElementById('statusText');
+
+            initBtn.disabled = true;
+            statusDot.className = 'status-dot initializing';
+            statusText.textContent = 'Initializing...';
+
+            try {
+                const response = await fetch('/api/init', {
+                    method: 'POST'
+                });
+                const data = await response.json();
+
+                if (data.status === 'initializing') {
+                    // Start polling for status updates
+                    pollStatus();
+                } else if (data.status === 'ready') {
+                    statusDot.className = 'status-dot ready';
+                    statusText.textContent = 'System ready';
+                    initBtn.textContent = 'Ready';
+                } else if (data.status === 'error') {
+                    statusDot.className = 'status-dot error';
+                    statusText.textContent = 'Initialization failed';
+                    initBtn.disabled = false;
+                    initBtn.textContent = 'Retry';
+                }
+            } catch (error) {
+                console.error('Initialization error:', error);
+                statusDot.className = 'status-dot error';
+                statusText.textContent = 'Error connecting to server';
+                initBtn.disabled = false;
+            }
+        }
+
+        async function pollStatus() {
+            try {
+                const response = await fetch('/api/status');
+                const data = await response.json();
+
+                const statusDot = document.getElementById('statusDot');
+                const statusText = document.getElementById('statusText');
+                const initBtn = document.getElementById('initBtn');
+
+                if (data.initializing) {
+                    // Still initializing, continue polling
+                    setTimeout(pollStatus, 2000);
+                } else if (data.initialized) {
+                    statusDot.className = 'status-dot ready';
+                    statusText.textContent = 'System ready';
+                    initBtn.textContent = 'Ready';
+                    updateComponentStatus(data.components);
+                } else if (data.error) {
+                    statusDot.className = 'status-dot error';
+                    statusText.textContent = 'Error: ' + data.error;
+                    initBtn.disabled = false;
+                    initBtn.textContent = 'Retry';
+                }
+            } catch (error) {
+                console.error('Status check error:', error);
+            }
+        }
+
+        function updateComponentStatus(components) {
+            // Update UI to show which components are ready
+            console.log('Component status:', components);
+        }
+    </script>
+</body>
+
+</html>
